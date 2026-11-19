@@ -20,4 +20,37 @@ WHERE ranking < 6
 -- d'aquestes dates: 29 d'abril del 2015, 20 de juliol del 2018 i 13 de març del 2024. 
 -- Ordena els resultats de major a menor quantitat.
 
-describe fact_transactions
+SELECT c.company_name, c.phone, c.country , DATE(t.timestamp) , t.amount
+FROM dim_company AS c
+INNER JOIN fact_transactions AS t
+ON c.company_id = t.company_id
+WHERE (t.amount BETWEEN 350 AND 400) AND (DATE(t.timestamp) IN ('2015-04-29', '2018-7-20','2024-3-13')) 
+
+-- Exercici 3
+-- Necessitem optimitzar l'assignació dels recursos i dependrà de la capacitat operativa que es 
+-- requereixi, per la qual cosa et demanen la informació sobre la quantitat de transaccions que 
+-- realitzen les empreses, però el departament de recursos humans és exigent i vol un llistat de 
+-- les empreses on especifiquis si tenen igual o més de 400 transaccions o menys.
+
+WITH transactions_nb AS (
+    SELECT 
+        c.company_id , 
+        COUNT(t.id) AS total_transacciones
+    FROM dim_company AS c
+    INNER JOIN fact_transactions AS t
+    ON c.company_id = t.company_id
+    GROUP BY c.company_id)
+SELECT c.company_id ,  c.company_name , c.country,
+    CASE
+        WHEN t.total_transacciones < 400 THEN 'Menos 400'
+        WHEN t.total_transacciones > 400 THEN 'Mas 400'
+        WHEN t.total_transacciones = 400 THEN 'igual 400'
+    END AS transacciones_nb
+        
+FROM dim_company AS c
+INNER JOIN transactions_nb AS t
+ON c.company_id = t.company_id
+
+-- Exercici 4
+-- Elimina de la taula transaction el registre amb ID 000447FE-B650-4DCF-85DE-C7ED0EE1CAAD de
+--  la base de dades.
