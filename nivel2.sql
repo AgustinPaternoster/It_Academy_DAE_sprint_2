@@ -54,3 +54,30 @@ ON c.company_id = t.company_id
 -- Exercici 4
 -- Elimina de la taula transaction el registre amb ID 000447FE-B650-4DCF-85DE-C7ED0EE1CAAD de
 --  la base de dades.
+SELECT *
+FROM fact_transactions
+WHERE id LIKE '000447FE-B650-4DCF-85DE-C7ED0EE1CAAD'
+
+DELETE FROM fact_transactions
+WHERE id LIKE '000447FE-B650-4DCF-85DE-C7ED0EE1CAAD'
+
+-- Exercici 5
+-- La sección de marketing desea tener acceso a información específica para realizar
+-- análisis y estrategias efectivas. Se ha solicitado crear una vista que proporcione 
+-- detalles clave sobre las compañías y sus transacciones. Será necesaria que crees una
+-- vista llamada VistaMarketing que contenga la siguiente información: Nombre de la compañía
+-- . Teléfono de contacto. País de residencia. Media de compra realizado por cada compañía. 
+-- Presenta la vista creada, ordenando los datos de mayor a menor promedio de compra.
+
+CREATE VIEW vistamarketing AS
+WITH company_data AS ( 
+    SELECT c.company_name, 
+    c.phone, 
+    c.country,
+    AVG(t.amount) OVER (PARTITION BY c.company_id) AS sales_avg
+    FROM dim_company AS c
+    INNER JOIN fact_transactions AS t
+    ON t.company_id = c.company_id)
+SELECT DISTINCT company_name, phone, country, ROUND(sales_avg,2) AS sales_avg
+FROM company_data
+ORDER BY sales_avg DESC
