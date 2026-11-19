@@ -130,3 +130,186 @@ ALTER TABLE credit_card
 DROP COLUMN pan;
 
 
+-- Ejercicio 8
+-- Crear tablas de dimensiones y hechos
+CREATE TABLE dim_users (
+    id INT NOT NULL,
+    name VARCHAR(100),
+    surname VARCHAR(100),
+    phone VARCHAR(30),
+    email VARCHAR(150),
+    birth_date DATE,
+    region VARCHAR(20),
+    country VARCHAR(100),
+    city VARCHAR(100),
+    postal_code VARCHAR(20),
+    address VARCHAR(255),
+    signup_date DATE,
+    user_segment VARCHAR(30),
+    income_band VARCHAR(20),
+    
+    PRIMARY KEY (Id)
+);
+
+CREATE TABLE dim_company (
+    company_id VARCHAR(15) NOT NULL,
+    company_name VARCHAR(255),
+    phone VARCHAR(25),
+    email VARCHAR(100),
+    country VARCHAR(100),
+    website VARCHAR(255),
+    merchant_category VARCHAR(50),
+    merchant_price_position VARCHAR(20),
+    
+    PRIMARY KEY (company_id)
+);
+
+CREATE TABLE dim_credit_card (
+    id VARCHAR(15) NOT NULL,
+    iban VARCHAR(40),
+    pan VARCHAR(25),
+    pin VARCHAR(4),
+    cvv VARCHAR(3),
+    track1 VARCHAR(100),
+    track2 VARCHAR(100),
+    expiring_date VARCHAR(10),
+    card_type VARCHAR(20),
+    card_renewal_flag BOOLEAN,
+    
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE fact_transactions (
+    id VARCHAR(36) NOT NULL,
+    company_id VARCHAR(15),
+    card_id VARCHAR(15),
+    user_id INT,
+    `timestamp` DATETIME,
+    amount DECIMAL(10,2),
+    declined BOOLEAN,
+    product_ids VARCHAR(255),
+    lat FLOAT,
+    longitude FLOAT,
+    discount_amount DECIMAL(10,2),
+    tax_amount DECIMAL(10,2),
+    shipping_amount DECIMAL(10,2),
+    channel VARCHAR(20),
+    campaign_id VARCHAR(30),
+    device_type VARCHAR(20),
+    is_international BOOLEAN,
+    decline_reason VARCHAR(50),
+    distance_km DECIMAL(10,2),
+    
+    PRIMARY KEY (id),
+    FOREIGN KEY (conpany_id) REFERENCES dim_company(company_id),
+    FOREIGN KEY (card_id) REFERENCES dim_credit_card(id),
+    FOREIGN KEY (user_id) REFERENCES dim_users(id)
+);
+
+-- Carga de datos en tablas dim y fact
+
+INSERT INTO dim_company (company_id,company_name,phone,email,country,website,merchant_category,merchant_price_position)
+SELECT company_id,company_name,phone,email,country,website,merchant_category,merchant_price_position
+FROM tmp_company;
+
+INSERT INTO dim_credit_card (
+    id, 
+    iban, 
+    pan, 
+    pin, 
+    cvv, 
+    track1, 
+    track2, 
+    expiring_date,
+    card_type,
+    card_renewal_flag)
+SELECT 
+    id,
+    iban,
+    pan, 
+    pin,
+    cvv,
+    track1,
+    track2,
+    expiring_date,
+    card_type,
+    card_renewal_flag
+FROM tmp_credit_card
+-- describe tmp_credit_card
+
+INSERT INTO dim_users (
+    id ,
+    name ,
+    surname ,
+    phone ,
+    email ,
+    birth_date ,
+    region ,
+    country ,
+    city ,
+    postal_code ,
+    address ,
+    signup_date ,
+    user_segment ,
+    income_band
+    )
+SELECT id, name, surname, phone, email,birth_date, "american" AS region, country,city,postal_code,address,signup_date,user_segment,income_band
+FROM tmp_american_users
+UNION
+SELECT id, name, surname, phone, email,birth_date, 'european' AS region, country,city,postal_code,address,signup_date,user_segment,income_band
+FROM tmp_european_users
+
+INSERT INTO fact_transactions (
+    id,
+    conpany_id ,
+    card_id ,
+    user_id ,
+    `timestamp` ,
+    amount ,
+    declined ,
+    product_ids ,
+    lat ,
+    longitude ,
+    discount_amount ,
+    tax_amount ,
+    shipping_amount ,
+    channel ,
+    campaign_id ,
+    device_type ,
+    is_international ,
+    decline_reason ,
+    distance_km
+)
+SELECT f.id, f.business_id, f.card_id, f.user_id, f.timestamp, f.amount, f.declined,
+    f.product_ids, f.lat, f.longitude, f.discount_amount, f.tax_amount, f.shipping_amount,
+    f.channel, f.campaign_id, f.decline_reason, f.is_international, f.decline_reason, f.distance_km
+FROM tmp_transactions AS f
+
+descExercici 9
+-- Realitza una subconsulta que mostri tots els usuaris amb més de 80 transaccions 
+-- utilitzant almenys 2 taules.
+
+SELECT u.* , COUNT(*) as total_trans
+from dim_users AS u
+INNER JOIN fact_transactions AS t
+ON t.user_id = u.id
+GROUP BY u.id
+HAVING COUNT(*) > 80
+ORDER BY total_trans
+
+-- Exercici 10
+-- Mostra la mitjana d'amount per IBAN de les targetes de crèdit a la companyia Donec Ltd, utilitza almenys 2 taules.
+
+WITH iban AS (SELECT c.iban, 
+    b.company_name ,
+    t.amount   
+FROM dim_credit_card AS c
+INNER JOIN fact_transactions AS t
+ON c.id = t.card_id
+INNER JOIN dim_company AS b
+ON t.company_id = b.company_id
+WHERE b.company_name LIKE 'Donec Ltd')
+SELECT  iban, AVG(amount) AS amount_avg
+FROM iban
+GROUP BY iban
+
