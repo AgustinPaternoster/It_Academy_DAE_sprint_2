@@ -119,6 +119,7 @@ NOW(),
 ALTER TABLE credit_card
 DROP COLUMN pan;
 
+describe credit_card;
 
 -- Ejercicio 8
 -- Crear tablas de dimensiones y hechos
@@ -425,13 +426,17 @@ FROM tmp_transactions AS f;
 -- Realitza una subconsulta que mostri tots els usuaris amb més de 80 transaccions 
 -- utilitzant almenys 2 taules.
 
-SELECT u.* , COUNT(*) as total_trans
-from dim_users AS u
-INNER JOIN fact_transactions AS t
-ON t.user_id = u.id
-GROUP BY u.id
-HAVING COUNT(*) > 80
-ORDER BY total_trans
+WITH transctions_nb AS (
+    SELECT 
+        u.* , 
+        COUNT(*) as total_trans
+    FROM dim_users AS u
+    INNER JOIN fact_transactions AS t
+    ON t.user_id = u.id
+    GROUP BY u.id)
+SELECT *
+FROM transctions_nb
+WHERE total_trans > 80
 
 -- Exercici 10
 -- Mostra la mitjana d'amount per IBAN de les targetes de crèdit a la companyia Donec Ltd, utilitza almenys 2 taules.
