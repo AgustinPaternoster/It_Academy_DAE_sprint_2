@@ -1,15 +1,17 @@
-USE transactions;
+USE new_transactions;
 
 Exercici 1
 -- Identifica els cinc dies que es va generar la quantitat més gran d'ingressos a l'empresa per 
 -- vendes. Mostra la data de cada transacció juntament amb el total de les vendes.
 
 
-WITH ranking_ventas AS (SELECT DATE(t.timestamp) AS fecha, 
-    SUM(t.amount) ventas_totales,
-    RANK () OVER(ORDER BY SUM(t.amount) DESC) AS ranking
-FROM fact_transactions AS t
-GROUP BY DATE(t.timestamp))
+WITH ranking_ventas AS (
+    SELECT 
+        DATE(t.timestamp) AS fecha, 
+        SUM(t.amount) ventas_totales,
+        RANK () OVER(ORDER BY SUM(t.amount) DESC) AS ranking
+    FROM fact_transactions AS t
+    GROUP BY DATE(t.timestamp))
 SELECT fecha, ventas_totales
 FROM ranking_ventas
 WHERE ranking < 6
@@ -54,9 +56,6 @@ ON c.company_id = t.company_id
 -- Exercici 4
 -- Elimina de la taula transaction el registre amb ID 000447FE-B650-4DCF-85DE-C7ED0EE1CAAD de
 --  la base de dades.
-SELECT *
-FROM fact_transactions
-WHERE id LIKE '000447FE-B650-4DCF-85DE-C7ED0EE1CAAD'
 
 DELETE FROM fact_transactions
 WHERE id LIKE '000447FE-B650-4DCF-85DE-C7ED0EE1CAAD'
@@ -81,3 +80,6 @@ WITH company_data AS (
 SELECT DISTINCT company_name, phone, country, ROUND(sales_avg,2) AS sales_avg
 FROM company_data
 ORDER BY sales_avg DESC
+
+SELECT *
+FROM vistamarketing

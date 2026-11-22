@@ -1,5 +1,4 @@
 USE transactions
-
 -- Exercici 2
 
 -- Llistat dels països que estan generant vendes.
@@ -70,16 +69,16 @@ WHERE NOT EXISTS (SELECT 1 FROM transaction AS t WHERE c.id = t.company_id)
 -- dues taules ("transaction" i "company"). Després de crear la taula serà necessari que ingressis la informació del document 
 -- denominat "dades_introduir_credit". Recorda mostrar el diagrama i realitzar una breu descripció d'aquest.
 
--- (id, iban, pan, pin, cvv, expiring_dat
--- CcU-2952', 'BG45IVQL52710525608255', '4556 453 55 5287', '4598', '438', '06/29/21'
 CREATE TABLE credit_card (
     id VARCHAR(15) PRIMARY KEY,
     iban VARCHAR(40),
     pan VARCHAR (20),
     pin VARCHAR (4),
     cvv VARCHAR (3),
-    expiring_date VARCHAR (10)
-)L
+    expiring_date VARCHAR (10),
+    CONSTRAINT chk_pin CHECK (pin REGEXP '^[0-9]{4}'),
+    CONSTRAINT chk_cvv CHECK (cvv REGEXP '^[0-9]{3}') 
+)
 
 -- Exercici 5
 -- El departament de Recursos Humans ha identificat un error en el número de compte associat a la targeta
@@ -92,24 +91,15 @@ WHERE id LIKE 'CcU-2938'
 
 -- Exercici 6
 -- En la taula "transaction" ingressa una nova transacció amb la següent informació:
-Id :108B1D1D-5B23-A76C-55EF-C568E49A99DD 
-credit_card_id :CcU-9999 
-company_id : b-9999 
-user_id :9999 
-lat :829.999 
-longitude : -117.999 
-amount :111.11 
-declined : 0 
+-- Id :108B1D1D-5B23-A76C-55EF-C568E49A99DD 
+-- credit_card_id :CcU-9999 
+-- company_id : b-9999 
+-- user_id :9999 
+-- lat :829.999 
+-- longitude : -117.999 
+-- amount :111.11 
+-- declined : 0 
         
-INSERT INTO company VALUES(
- 'b-9999',
- 'Tester Inc',
- '06 85 56 52 31',
- 'tester@tester.com',
- 'Germany',
- 'www.tester.com'   
-)
-
 INSERT INTO transaction 
 VALUES(
 '108B1D1D-5B23-A76C-55EF-C568E49A99DD ',
@@ -132,6 +122,153 @@ DROP COLUMN pan;
 
 -- Ejercicio 8
 -- Crear tablas de dimensiones y hechos
+CREATE DATABASE new_transactions;
+USE new_transactions;
+
+CREATE TABLE IF NOT EXISTS tmp_transactions (
+    id VARCHAR(36) NOT NULL,
+    card_id VARCHAR(15),
+    business_id VARCHAR(15),
+    `timestamp` DATETIME,
+    amount DECIMAL(10,2),
+    declined TINYINT(1),
+    product_ids VARCHAR(255),
+    user_id INT,
+    lat FLOAT,
+    longitude FLOAT,
+    discount_amount DECIMAL(10,2),
+    tax_amount DECIMAL(10,2),
+    shipping_amount DECIMAL(10,2),
+    channel VARCHAR(20),
+    campaign_id VARCHAR(30),
+    device_type VARCHAR(20),
+    is_international TINYINT(1),
+    decline_reason VARCHAR(50),
+    distance_km DECIMAL(10,2),
+    PRIMARY KEY (id)
+);
+
+-- 2) Vaciar la tabla para poder reejecutar la carga sin duplicados
+
+CREATE TABLE IF NOT EXISTS tmp_company (
+    company_id VARCHAR(15) NOT NULL,
+    company_name VARCHAR(255) NOT NULL,
+    phone VARCHAR(25),
+    email VARCHAR(150),
+    country VARCHAR(100),
+    website VARCHAR(255),
+    merchant_category VARCHAR(50),
+    merchant_price_position VARCHAR(20),
+    PRIMARY KEY (company_id)
+);
+
+CREATE TABLE IF NOT EXISTS tmp_credit_card (
+    id VARCHAR(15) NOT NULL,
+    user_id INT,
+    iban VARCHAR(40),
+    pan VARCHAR(25),
+    pin VARCHAR(4),
+    cvv VARCHAR(4),
+    track1 VARCHAR(100),
+    track2 VARCHAR(100),
+    expiring_date VARCHAR(10),
+    card_type VARCHAR(20),
+    card_renewal_flag TINYINT(1),
+    PRIMARY KEY (id)
+);
+
+USE new_transactions;
+CREATE TABLE IF NOT EXISTS tmp_european_users (
+    id INT NOT NULL,
+    name VARCHAR(100),
+    surname VARCHAR(100),
+    phone VARCHAR(30),
+    email VARCHAR(150),
+    birth_date DATE,
+    country VARCHAR(100),
+    city VARCHAR(100),
+    postal_code VARCHAR(20),
+    address VARCHAR(255),
+    signup_date DATE,
+    user_segment VARCHAR(30),
+    income_band VARCHAR(20),
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS tmp_american_users (
+    id INT NOT NULL,
+    name VARCHAR(100),
+    surname VARCHAR(100),
+    phone VARCHAR(30),
+    email VARCHAR(150),
+    birth_date DATE,
+    country VARCHAR(100),
+    city VARCHAR(100),
+    postal_code VARCHAR(20),
+    address VARCHAR(255),
+    signup_date DATE,
+    user_segment VARCHAR(30),
+    income_band VARCHAR(20),
+    PRIMARY KEY (id)
+);
+
+-- IMPORTACION DE archivos CSV
+LOAD DATA INFILE '/app/files/N1-Ex.8__transactions.csv'
+IGNORE
+INTO TABLE tmp_transactions
+FIELDS TERMINATED BY ';'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES
+(id, card_id, business_id, `timestamp`, amount, declined, product_ids, user_id,
+ lat, longitude, discount_amount, tax_amount, shipping_amount, channel,
+ campaign_id, device_type, is_international, @decline_reason, distance_km)
+SET decline_reason = NULLIF(@decline_reason, '');
+
+LOAD DATA INFILE '/app/files/N1-Ex.8__companies.csv'
+IGNORE
+INTO TABLE tmp_company
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES
+(company_id, company_name, phone, email, country, website,
+ merchant_category, merchant_price_position);
+
+LOAD DATA INFILE '/app/files/N1-Ex.8__credit_cards.csv'
+IGNORE
+INTO TABLE tmp_credit_card
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES
+(id, user_id, iban, pan, pin, cvv, track1, track2, expiring_date,
+ card_type, card_renewal_flag);
+
+LOAD DATA INFILE '/app/files/N1-Ex.8__european_users.csv'
+IGNORE
+INTO TABLE tmp_european_users
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES
+(id, name, surname, phone, email, @birth_date, country, city, postal_code,
+ address, signup_date, user_segment, income_band)
+SET birth_date = STR_TO_DATE(@birth_date, '%b %d, %Y');
+
+LOAD DATA INFILE '/app/files/N1-Ex.8__american_users.csv'
+IGNORE
+INTO TABLE tmp_american_users
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES
+(id, name, surname, phone, email, @birth_date, country, city, postal_code,
+ address, signup_date, user_segment, income_band)
+SET birth_date = STR_TO_DATE(@birth_date, '%b %d, %Y');
+
+-- 4) Comprobación: deben ser 1010 filas
+
+use new_transactions;
+
 CREATE TABLE dim_users (
     id INT NOT NULL,
     name VARCHAR(100),
@@ -184,7 +321,7 @@ CREATE TABLE fact_transactions (
     company_id VARCHAR(15),
     card_id VARCHAR(15),
     user_id INT,
-    `timestamp` DATETIME,
+    `timestamp` TIMESTAMP,
     amount DECIMAL(10,2),
     declined BOOLEAN,
     product_ids VARCHAR(255),
@@ -201,7 +338,7 @@ CREATE TABLE fact_transactions (
     distance_km DECIMAL(10,2),
     
     PRIMARY KEY (id),
-    FOREIGN KEY (conpany_id) REFERENCES dim_company(company_id),
+    FOREIGN KEY (company_id) REFERENCES dim_company(company_id),
     FOREIGN KEY (card_id) REFERENCES dim_credit_card(id),
     FOREIGN KEY (user_id) REFERENCES dim_users(id)
 );
@@ -235,7 +372,6 @@ SELECT
     card_type,
     card_renewal_flag
 FROM tmp_credit_card
--- describe tmp_credit_card
 
 INSERT INTO dim_users (
     id ,
@@ -261,7 +397,7 @@ FROM tmp_european_users
 
 INSERT INTO fact_transactions (
     id,
-    conpany_id ,
+    company_id ,
     card_id ,
     user_id ,
     `timestamp` ,
@@ -283,9 +419,9 @@ INSERT INTO fact_transactions (
 SELECT f.id, f.business_id, f.card_id, f.user_id, f.timestamp, f.amount, f.declined,
     f.product_ids, f.lat, f.longitude, f.discount_amount, f.tax_amount, f.shipping_amount,
     f.channel, f.campaign_id, f.decline_reason, f.is_international, f.decline_reason, f.distance_km
-FROM tmp_transactions AS f
+FROM tmp_transactions AS f;
 
-descExercici 9
+-- Exercici 9
 -- Realitza una subconsulta que mostri tots els usuaris amb més de 80 transaccions 
 -- utilitzant almenys 2 taules.
 
@@ -300,16 +436,18 @@ ORDER BY total_trans
 -- Exercici 10
 -- Mostra la mitjana d'amount per IBAN de les targetes de crèdit a la companyia Donec Ltd, utilitza almenys 2 taules.
 
-WITH iban AS (SELECT c.iban, 
-    b.company_name ,
-    t.amount   
-FROM dim_credit_card AS c
-INNER JOIN fact_transactions AS t
-ON c.id = t.card_id
-INNER JOIN dim_company AS b
-ON t.company_id = b.company_id
-WHERE b.company_name LIKE 'Donec Ltd')
+WITH iban AS (
+    SELECT c.iban, 
+        b.company_name ,
+        t.amount   
+    FROM dim_credit_card AS c
+    INNER JOIN fact_transactions AS t
+    ON c.id = t.card_id
+    INNER JOIN dim_company AS b
+    ON t.company_id = b.company_id
+    WHERE b.company_name LIKE 'Donec Ltd')
 SELECT  iban, AVG(amount) AS amount_avg
 FROM iban
-GROUP BY iban
+GROUP BY iban;
+
 
