@@ -34,11 +34,6 @@ INSERT INTO dim_credit_card_state (
     expiring_date,
     card_type,
     card_renewal_flag)
-SELECT *
-FROM dim_credit_card;
-
-select *
-FROM dim_credit_card_state;
 
 
 
@@ -110,6 +105,7 @@ CREATE TABLE IF NOT EXISTS tmp_products (
 );
 
 LOAD DATA INFILE '/app/files/N1-Ex.8__products.csv'
+IGNORE
 INTO TABLE tmp_products
 FIELDS TERMINATED BY ','
 ENCLOSED BY '"'
@@ -167,7 +163,7 @@ WITH sales_products AS (
         t.id_product, 
         p.product_name, 
         p.price,
-        SUM(t.quantity) OVER (PARTITION BY t.id_product) AS total_sales
+        SUM(t.quantity) OVER (PARTITION BY t.id_product) AS total_units_sold
     FROM fact_detail_transactions AS t  
     INNER JOIN dim_products AS p 
     ON t.id_product = p.id)

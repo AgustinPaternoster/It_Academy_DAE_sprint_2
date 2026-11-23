@@ -25,14 +25,13 @@ WITH sales_AVG AS (
     ON c.id = t.company_id
     GROUP BY c.company_name
 )
-SELECT comany_name
+SELECT company_name
 FROM `sales_AVG`
 WHERE ranking = 1
 
 
 -- Exercici 3
 -- Utilitzant només subconsultes (sense utilitzar JOIN):
-
 -- Mostra totes les transaccions realitzades per empreses d'Alemanya.
 WITH german_companies AS (
     SELECT id
@@ -84,6 +83,7 @@ CREATE TABLE credit_card (
 -- El departament de Recursos Humans ha identificat un error en el número de compte associat a la targeta
 -- de crèdit amb ID CcU-2938. La informació que ha de mostrar-se per a aquest registre és: TR323456312213576817699999
 -- . Recorda mostrar que el canvi es va realitzar.
+
 UPDATE credit_card
     SET
         iban = "TR323456312213576817699999"
@@ -149,7 +149,6 @@ CREATE TABLE IF NOT EXISTS tmp_transactions (
     PRIMARY KEY (id)
 );
 
--- 2) Vaciar la tabla para poder reejecutar la carga sin duplicados
 
 CREATE TABLE IF NOT EXISTS tmp_company (
     company_id VARCHAR(15) NOT NULL,
