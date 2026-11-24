@@ -11,12 +11,19 @@ GROUP BY c.country
 ORDER BY transactions_count
 
 -- Des de quants països es generen les vendes. //
-SELECT c.country , DATE(min(t.timestamp)) AS first_transtaction
-FROM company AS c
-INNER JOIN transaction AS t
-ON c.id = t.company_id
-WHERE t.declined = 0
-GROUP BY c.country
+
+WITH trans_com AS (
+    SELECT country , COUNT(*)
+    FROM transaction AS t
+    INNER JOIN company AS c
+    ON t.company_id = c.id
+    WHERE declined = 0
+    GROUP BY country)
+SELECT COUNT(*)
+FROM trans_com
+
+
+
 
 -- Identifica la companyia amb la mitjana més gran de vendes.
 WITH sales_AVG AS (
@@ -457,5 +464,247 @@ WITH iban AS (
 SELECT  iban, ROUND(AVG(amount),2) AS amount_avg
 FROM iban
 GROUP BY iban;
+
+
+-- #####################
+-- ####   NIVEL II   ### 
+-- #####################
+
+USE new_transactions;
+
+Exercici 1
+-- Identifica els cinc dies que es va generar la quantitat més gran d'ingressos a l'empresa per 
+-- vendes. Mostra la data de cada transacció juntament amb el total de les vendes.
+
+
+WITH ranking_ventas AS (
+    SELECT 
+        DATE(t.timestamp) AS fecha, 
+        SUM(t.amount) ventas_totales,
+        RANK () OVER(ORDER BY SUM(t.amount) DESC) AS ranking
+    FROM fact_transactions AS t
+    GROUP BY DATE(t.timestamp))
+SELECT fecha, ventas_totales
+FROM ranking_ventas
+WHERE ranking < 6
+
+-- Exercici 2
+-- Presenta el nom, telèfon, país, data i amount, d'aquelles empreses que van 
+-- realitzar transaccions amb un valor comprès entre 350 i 400 euros i en alguna 
+-- d'aquestes dates: 29 d'abril del 2015, 20 de juliol del 2018 i 13 de març del 2024. 
+-- Ordena els resultats de major a menor quantitat.
+
+SELECT c.company_name, c.phone, c.country , DATE(t.timestamp) , t.amount
+FROM dim_company AS c
+INNER JOIN fact_transactions AS t
+ON c.company_id = t.company_id
+WHERE (t.amount BETWEEN 350 AND 400) AND (DATE(t.timestamp) IN ('2015-04-29', '2018-7-20','2024-3-13')) 
+
+-- Exercici 3
+-- Necessitem optimitzar l'assignació dels recursos i dependrà de la capacitat operativa que es 
+-- requereixi, per la qual cosa et demanen la informació sobre la quantitat de transaccions que 
+-- realitzen les empreses, però el departament de recursos humans és exigent i vol un llistat de 
+-- les empreses on especifiquis si tenen igual o més de 400 transaccions o menys.
+
+WITH transactions_nb AS (
+    SELECT 
+        c.company_id , 
+        COUNT(t.id) AS total_transacciones
+    FROM dim_company AS c
+    INNER JOIN fact_transactions AS t
+    ON c.company_id = t.company_id
+    GROUP BY c.company_id)
+SELECT c.company_id ,  c.company_name , c.country,
+    CASE
+        WHEN t.total_transacciones < 400 THEN 'Menos 400'
+        WHEN t.total_transacciones > 400 THEN 'Mas 400'
+        WHEN t.total_transacciones = 400 THEN 'igual 400'
+    END AS transacciones_nb
+FROM dim_company AS c
+INNER JOIN transactions_nb AS t
+ON c.company_id = t.company_id
+
+-- Exercici 4
+-- Elimina de la taula transaction el registre amb ID 000447FE-B650-4DCF-85DE-C7ED0EE1CAAD de
+--  la base de dades.
+
+DELETE FROM fact_transactions
+WHERE id LIKE '000447FE-B650-4DCF-85DE-C7ED0EE1CAAD'
+
+-- Exercici 5
+-- La sección de marketing desea tener acceso a información específica para realizar
+-- análisis y estrategias efectivas. Se ha solicitado crear una vista que proporcione 
+-- detalles clave sobre las compañías y sus transacciones. Será necesaria que crees una
+-- vista llamada VistaMarketing que contenga la siguiente información: Nombre de la compañía
+-- . Teléfono de contacto. País de residencia. Media de compra realizado por cada compañía. 
+-- Presenta la vista creada, ordenando los datos de mayor a menor promedio de compra.
+
+CREATE OR REPLACE VIEW vistamarketing AS
+WITH company_data AS ( 
+    SELECT c.company_name, 
+    c.phone, 
+    c.country,
+    AVG(t.amount) OVER (PARTITION BY c.company_id) AS sales_avg
+    FROM dim_company AS c
+    INNER JOIN fact_transactions AS t
+    ON t.company_id = c.company_id)
+SELECT DISTINCT company_name, phone, country, ROUND(sales_avg,2) AS sales_avg
+FROM company_data
+ORDER BY sales_avg DESC
+
+SELECT *
+FROM vistamarketing
+
+-- ######################
+-- ####   NIVEL III   ### 
+-- ######################
+
+USE new_transactions;
+-- Exercici 1
+-- Ejercicio 1
+-- Crea una nueva tabla que refleje el estado de las tarjetas de crédito basado en si las tres últimas 
+-- transacciones han sido declinadas entonces es inactivo, si 
+-- al menos una no es rechazada entonces es activo. Partiendo de esta tabla responde:
+-- 👉 ¿Cuántas tarjetas están activas?
+
+
+CREATE TABLE dim_credit_card_state (
+    id VARCHAR(15) NOT NULL,
+    iban VARCHAR(40),
+    pan VARCHAR(25),
+    pin VARCHAR(4),
+    cvv VARCHAR(3),
+    track1 VARCHAR(100),
+    track2 VARCHAR(100),
+    expiring_date VARCHAR(10),
+    card_type VARCHAR(20),
+    card_renewal_flag BOOLEAN,
+    state VARCHAR(20),
+    
+    PRIMARY KEY (id)
+);
+
+INSERT INTO dim_credit_card_state (
+    id, 
+    iban, 
+    pan,
+    pin, 
+    cvv, 
+    track1, 
+    track2, 
+    expiring_date,
+    card_type,
+    card_renewal_flag)
+WITH transacciones AS (
+    SELECT 
+        c.id AS id_card , 
+        t.id AS id_transaction,  
+        t.declined , 
+        t.timestamp,
+        ROW_NUMBER() OVER (
+            PARTITION BY c.id
+            ORDER BY t.timestamp DESC, t.id DESC) AS ranking
+    FROM dim_credit_card AS c
+    INNER JOIN fact_transactions AS t
+    ON c.id = t.card_id)
+SELECT id_card , 
+IF (SUM(declined) = 3, 'inactiva', 'activa') AS state
+FROM transacciones AS t1
+WHERE t1.ranking < 4
+GROUP BY t1.id_card
+
+
+SELECT state , COUNT(*) as total_credit_card
+FROM dim_credit_card_state
+WHERE state = 'activa'
+
+
+
+-- Ejercicio 2
+-- Crea una tabla con la que podamos unir los datos del archivo de products.csv 
+-- con la base de datos creada (ya que hasta ahora no podíamos hacerlo), 
+-- teniendo en cuenta que desde transaction tienes product_ids. Genera la siguiente consulta:
+-- 👉 Necesitamos conocer el número de veces que se ha vendido cada producto.
+USE new_transactions;
+-- IMPORTACION ARCHIVO CSV
+
+CREATE TABLE IF NOT EXISTS tmp_products (
+    id INT PRIMARY KEY,
+    product_name VARCHAR(255),
+    price DECIMAL(10, 2),
+    colour VARCHAR(7),
+    weight DECIMAL(5, 2),
+    warehouse_id VARCHAR(10),
+    category VARCHAR(50),
+    brand VARCHAR(100),
+    cost DECIMAL(10, 2),
+    launch_date DATE
+);
+
+LOAD DATA INFILE '/app/files/N1-Ex.8__products.csv'
+IGNORE
+INTO TABLE tmp_products
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES
+(id, product_name, @price, colour, weight, warehouse_id, category, brand, @cost, launch_date)
+SET price = REPLACE(@price, '$', ''),
+    cost  = REPLACE(@cost,  '$', '');
+
+
+CREATE TABLE dim_products (
+    id INT PRIMARY KEY,
+    product_name VARCHAR(255),
+    price DECIMAL(10,2),
+    colour VARCHAR(30),
+    weight DECIMAL(10,2),
+    warehouse_id VARCHAR(10),
+    category VARCHAR(50),
+    brand VARCHAR(100),
+    cost DECIMAL(10,2),
+    launch_date DATE
+);
+
+CREATE TABLE fact_detail_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_product INT,
+    company_id VARCHAR(15),
+    user_id INT,
+    quantity INT,
+    id_transaction VARCHAR(36),
+    `timestamp` TIMESTAMP,
+
+    FOREIGN KEY(id_product) REFERENCES dim_products(id),
+    FOREIGN KEY(company_id) REFERENCES dim_company(company_id),
+    FOREIGN KEY(user_id) REFERENCES dim_users(id)
+);
+
+use new_transactions;
+INSERT INTO dim_products (id, product_name, price, colour, weight, warehouse_id, category, brand, cost, launch_date)
+SELECT id, product_name, price, colour, weight, warehouse_id, category, brand, cost, launch_date
+FROM tmp_products
+
+
+INSERT INTO fact_detail_transactions (id_product, company_id, user_id, quantity, id_transaction, timestamp)
+SELECT jt.id_product, company_id, user_id, 1 AS quantity, id, timestamp
+FROM fact_transactions AS t
+JOIN JSON_TABLE( 
+    CONCAT('[', TRIM(BOTH  ',' FROM t.product_ids),']') , 
+    '$[*]' COLUMNS(id_product INT PATH '$' )
+) AS jt;
+
+
+WITH sales_products AS (
+    SELECT 
+        t.id_product, 
+        p.product_name, 
+        p.price,
+        SUM(t.quantity) OVER (PARTITION BY t.id_product) AS total_units_sold
+    FROM fact_detail_transactions AS t  
+    INNER JOIN dim_products AS p 
+    ON t.id_product = p.id)
+SELECT DISTINCT *
+FROM sales_products;
 
 
