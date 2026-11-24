@@ -48,7 +48,6 @@ SELECT c.company_id ,  c.company_name , c.country,
         WHEN t.total_transacciones > 400 THEN 'Mas 400'
         WHEN t.total_transacciones = 400 THEN 'igual 400'
     END AS transacciones_nb
-        
 FROM dim_company AS c
 INNER JOIN transactions_nb AS t
 ON c.company_id = t.company_id
@@ -68,7 +67,7 @@ WHERE id LIKE '000447FE-B650-4DCF-85DE-C7ED0EE1CAAD'
 -- . Teléfono de contacto. País de residencia. Media de compra realizado por cada compañía. 
 -- Presenta la vista creada, ordenando los datos de mayor a menor promedio de compra.
 
-CREATE VIEW vistamarketing AS
+CREATE OR REPLACE VIEW vistamarketing AS
 WITH company_data AS ( 
     SELECT c.company_name, 
     c.phone, 

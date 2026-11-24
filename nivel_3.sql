@@ -34,9 +34,6 @@ INSERT INTO dim_credit_card_state (
     expiring_date,
     card_type,
     card_renewal_flag)
-
-
-
 WITH transacciones AS (
     SELECT 
         c.id AS id_card , 
@@ -55,27 +52,6 @@ FROM transacciones AS t1
 WHERE t1.ranking < 4
 GROUP BY t1.id_card
 
-UPDATE dim_credit_card_state AS cc
-JOIN (
-    WITH transacciones AS (
-    SELECT 
-        c.id AS id_card , 
-        t.id AS id_transaction,  
-        t.declined , 
-        t.timestamp,
-        ROW_NUMBER() OVER (
-            PARTITION BY c.id
-            ORDER BY t.timestamp DESC, t.id DESC) AS ranking
-    FROM dim_credit_card AS c
-    INNER JOIN fact_transactions AS t
-    ON c.id = t.card_id)
-SELECT id_card , 
-IF (SUM(declined) = 3, 'inactiva', 'activa') AS state
-FROM transacciones AS t1
-WHERE t1.ranking < 4
-GROUP BY t1.id_card
-) AS tr ON cc.id = tr.id_card
-SET cc.state = tr.state
 
 SELECT state , COUNT(*) as total_credit_card
 FROM dim_credit_card_state
@@ -169,3 +145,5 @@ WITH sales_products AS (
     ON t.id_product = p.id)
 SELECT DISTINCT *
 FROM sales_products;
+
+

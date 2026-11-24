@@ -1,6 +1,7 @@
 USE transactions
 -- Exercici 2
 
+
 -- Llistat dels països que estan generant vendes.
 SELECT c.country , COUNT(t.id) AS transactions_count
 FROM company AS c
@@ -9,23 +10,25 @@ ON c.id = t.company_id
 GROUP BY c.country
 ORDER BY transactions_count
 
--- Des de quants països es generen les vendes.
+-- Des de quants països es generen les vendes. //
 SELECT c.country , DATE(min(t.timestamp)) AS first_transtaction
 FROM company AS c
 INNER JOIN transaction AS t
 ON c.id = t.company_id
+WHERE t.declined = 0
 GROUP BY c.country
 
 -- Identifica la companyia amb la mitjana més gran de vendes.
 WITH sales_AVG AS (
-    SELECT c.company_name , 
+    SELECT c.company_name ,ROUND(AVG(t.amount),2) AS avg_sales,
         RANK() OVER (ORDER BY AVG(t.amount) DESC) AS ranking
     FROM company AS c
     INNER JOIN transaction AS t
     ON c.id = t.company_id
+    WHERE t.declined = 1
     GROUP BY c.company_name
 )
-SELECT company_name
+SELECT company_name, avg_sales
 FROM `sales_AVG`
 WHERE ranking = 1
 
@@ -39,9 +42,9 @@ WITH german_companies AS (
     WHERE country LIKE 'Germany'
 )
 SELECT *
-FROM transaction
-WHERE company_id IN (SELECT 1 FROM german_companies);
-
+FROM transaction AS t
+INNER JOIN german_companies AS g
+ON t.company_id = g.id
 
 
 
@@ -68,7 +71,7 @@ WHERE NOT EXISTS (SELECT 1 FROM transaction AS t WHERE c.id = t.company_id)
 -- dues taules ("transaction" i "company"). Després de crear la taula serà necessari que ingressis la informació del document 
 -- denominat "dades_introduir_credit". Recorda mostrar el diagrama i realitzar una breu descripció d'aquest.
 
-CREATE TABLE credit_card (
+CREATE TABLE IF NOT EXISTS credit_card (
     id VARCHAR(15) PRIMARY KEY,
     iban VARCHAR(40),
     pan VARCHAR (20),
@@ -123,7 +126,7 @@ describe credit_card;
 
 -- Ejercicio 8
 -- Crear tablas de dimensiones y hechos
-CREATE DATABASE new_transactions;
+CREATE DATABASE IF NOT EXISTS new_transactions;
 USE new_transactions;
 
 CREATE TABLE IF NOT EXISTS tmp_transactions (
@@ -425,6 +428,7 @@ FROM tmp_transactions AS f;
 -- Realitza una subconsulta que mostri tots els usuaris amb més de 80 transaccions 
 -- utilitzant almenys 2 taules.
 
+
 WITH transctions_nb AS (
     SELECT 
         u.* , 
@@ -450,7 +454,7 @@ WITH iban AS (
     INNER JOIN dim_company AS b
     ON t.company_id = b.company_id
     WHERE b.company_name LIKE 'Donec Ltd')
-SELECT  iban, AVG(amount) AS amount_avg
+SELECT  iban, ROUND(AVG(amount),2) AS amount_avg
 FROM iban
 GROUP BY iban;
 
